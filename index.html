@@ -67,6 +67,16 @@ select{background:var(--raise);border:1px solid var(--line);border-radius:8px;pa
 .result{display:flex;flex-direction:column;gap:8px}
 .result video{width:100%;border-radius:6px;background:#000}
 .credit{font-size:13px;color:var(--muted);margin:0}
+.speed{display:flex;flex-direction:column;gap:6px}
+.speedctl{display:flex;align-items:center;gap:8px}
+.speedctl input[type=range]{flex:1;min-width:0;accent-color:var(--accent)}
+.btn.step{width:32px;height:32px;padding:0;display:grid;place-items:center;font-size:18px;line-height:1;flex:none}
+.pct{display:inline-flex;align-items:center;gap:2px;color:var(--muted);font-size:14px;flex:none}
+.pct input{width:58px;background:var(--raise);border:1px solid var(--line);border-radius:6px;padding:5px 6px;text-align:right;font:inherit;color:var(--fg);font-variant-numeric:tabular-nums}
+.tempo{font-weight:600;font-variant-numeric:tabular-nums;font-size:16px;white-space:nowrap}
+.qn{width:.5em;height:1.15em;vertical-align:-.18em;fill:currentColor;margin-right:.08em}
+.linkbtn{background:none;border:none;padding:0;color:var(--accent);cursor:pointer;font-size:13.5px;text-decoration:underline;text-underline-offset:2px}
+.linkbtn[disabled]{opacity:.45;cursor:not-allowed}
 </style>
 
 <div class="app">
@@ -96,7 +106,16 @@ select{background:var(--raise);border:1px solid var(--line);border-radius:8px;pa
     <div class="group">
       <h2>Practice</h2>
       <div class="row"><span class="lbl">Mode</span><div class="seg" id="modeSeg"><button type="button" data-v="watch">Watch</button><button type="button" data-v="play">Play along</button></div></div>
-      <div class="row"><span class="lbl">Speed</span><div class="seg" id="speedSeg"><button type="button" data-v="0.5">50%</button><button type="button" data-v="0.75">75%</button><button type="button" data-v="1">100%</button></div></div>
+      <div class="speed">
+        <div class="row"><label class="lbl" for="speed">Speed</label><span class="tempo" id="tempoOut" aria-live="polite"><svg class="qn" viewBox="0 0 10 24" aria-hidden="true"><ellipse cx="4.6" cy="19.6" rx="4.4" ry="3.1" transform="rotate(-22 4.6 19.6)"/><rect x="7.6" y="1" width="1.5" height="18.4" rx=".5"/></svg> = 120</span></div>
+        <div class="speedctl">
+          <button class="btn step" id="speedDown" type="button" aria-label="Slower">−</button>
+          <input type="range" id="speed" min="25" max="200" step="5" value="100" aria-label="Speed in percent">
+          <button class="btn step" id="speedUp" type="button" aria-label="Faster">+</button>
+          <span class="pct"><input type="number" id="speedNum" min="25" max="200" step="1" value="100" aria-label="Speed in percent">%</span>
+        </div>
+        <div class="row"><span class="status" id="tempoOrig">Original tempo</span><button class="linkbtn" id="speedReset" type="button">Reset to 100%</button></div>
+      </div>
     </div>
     <div class="group">
       <h2>Display</h2>
@@ -1050,6 +1069,15 @@ function drawNeck(pos, now){
     ctx.fillStyle = '#16111f'; ctx.font = `800 34px ${F_DISP}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(n.fg.f === 'T' ? 'T' : String(n.fg.f), x, y + 2);
   });
 }
+// a quarter note followed by "= n", drawn by hand so it never depends on a font having the ♩ glyph
+function drawTempoMark(x, y, size, n){
+  ctx.save(); ctx.fillStyle = INK;
+  ctx.beginPath(); ctx.ellipse(x + size*0.26, y - size*0.16, size*0.27, size*0.19, -0.38, 0, Math.PI*2); ctx.fill();
+  ctx.fillRect(x + size*0.47, y - size*1.02, size*0.075, size*0.86);
+  ctx.font = `600 ${size}px ${F_BODY}`; ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+  ctx.fillText(`= ${n}`, x + size*0.78, y);
+  ctx.restore();
+}
 function wrapLines(text, x, y, maxW, lh, maxLines){
   const words = text.split(' '); let line = '', n = 0;
   for (const w of words){ const t = line ? line + ' ' + w : w; if (ctx.measureText(t).width > maxW && line){ ctx.fillText(line, x, y); y += lh; line = w; if (++n >= maxLines - 1) break; } else line = t; }
@@ -1074,6 +1102,7 @@ function frame(){
   const pos = getPos();
   if (P.playing && !seeking) seekEl.value = Math.max(0, pos).toFixed(2);
   timeEl.textContent = fmt(pos) + ' / ' + fmt(song.duration);
+  showTempo(pos);
   if (P.playing && pos > song.duration + 1.2){ pause(); P.pos = song.duration; if (U.mode === 'play') G.done = true; if (REC.active && !REC.ending){ REC.ending = true; setTimeout(stopRec, U.mode === 'play' ? 2500 : 400); } }
 
   // misses
@@ -1174,7 +1203,7 @@ function frame(){
   let tfs = 60; const title = (song.title || '').toUpperCase(); ctx.font = `800 ${tfs}px ${F_DISP}`; while (ctx.measureText(title).width > 340 && tfs > 30){ tfs -= 2; ctx.font = `800 ${tfs}px ${F_DISP}`; }
   ctx.fillStyle = INK; ctx.fillText(title, 48, 96);
   ctx.fillStyle = 'rgba(20,17,24,0.62)'; ctx.font = `400 24px ${F_BODY}`; wrapLines(song.subtitle || '', 50, 134, 340, 30, 2);
-  if (U.speed !== 1){ ctx.fillStyle = '#a85f00'; ctx.font = `800 28px ${F_DISP}`; ctx.fillText(Math.round(U.speed*100) + '% SPEED', 50, 206); }
+  if (U.speed !== 1){ ctx.fillStyle = '#a85f00'; ctx.font = `800 28px ${F_DISP}`; ctx.fillText(`${Math.round(U.speed*100)}% SPEED`, 50, 206); drawTempoMark(52, 244, 26, Math.round(tempoAt(Math.max(0, pos)) * U.speed)); }
   ctx.fillStyle = 'rgba(20,17,24,0.5)'; ctx.font = `400 20px ${F_BODY}`; ctx.textAlign = 'right'; ctx.fillText('Cello sound: Musyng Kite soundfont (CC BY-SA 3.0)', W - 28, H - 22);
 
   // HUD
@@ -1217,7 +1246,38 @@ function seg(id, key, cast, after){
   sync();
 }
 seg('modeSeg', 'mode', String, () => { const was = P.playing; pause(); P.pos = 0; seekEl.value = 0; P.fresh = true; resetRun(); if (was) play(); });
-seg('speedSeg', 'speed', Number, () => { if (P.playing) restartAt(getPos()); });
+// speed: any percentage from 25% to 200%, with the resulting tempo shown as quarter notes per minute
+const SPEED_MIN = 25, SPEED_MAX = 200;
+const QN_SVG = '<svg class="qn" viewBox="0 0 10 24" aria-hidden="true"><ellipse cx="4.6" cy="19.6" rx="4.4" ry="3.1" transform="rotate(-22 4.6 19.6)"/><rect x="7.6" y="1" width="1.5" height="18.4" rx=".5"/></svg>';
+U.speed = Math.max(SPEED_MIN/100, Math.min(SPEED_MAX/100, +U.speed || 1));
+function tempoAt(t){                      // original quarter-note tempo at a point in the piece
+  const b = song.beats; if (!b || b.length < 2) return 120;
+  let lo = 0, hi = b.length - 2; while (lo < hi){ const m = (lo + hi + 1) >> 1; if (b[m] <= t) lo = m; else hi = m - 1; }
+  return 60 / Math.max(0.05, b[lo+1] - b[lo]);
+}
+let lastTempoText = '';
+function showTempo(pos){
+  const orig = tempoAt(Math.max(0, pos)), now = Math.round(orig * U.speed), o = Math.round(orig);
+  const text = `♩ = ${now}|${o}`;
+  if (text === lastTempoText) return; lastTempoText = text;
+  $('tempoOut').innerHTML = `${QN_SVG} = ${now}`;
+  $('tempoOrig').innerHTML = U.speed === 1 ? 'Original tempo' : `Original ${QN_SVG} = ${o}`;
+  $('speedReset').disabled = U.speed === 1;
+}
+function setSpeed(pct){
+  pct = Math.round(Math.max(SPEED_MIN, Math.min(SPEED_MAX, +pct || 100)));
+  U.speed = pct / 100; saveU();
+  $('speed').value = pct; if (document.activeElement !== $('speedNum')) $('speedNum').value = pct;
+  lastTempoText = ''; showTempo(getPos());
+  if (P.playing) restartAt(getPos());
+}
+$('speed').addEventListener('input', e => setSpeed(e.target.value));
+$('speedNum').addEventListener('change', e => { setSpeed(e.target.value); e.target.value = Math.round(U.speed * 100); });
+$('speedNum').addEventListener('keydown', e => { if (e.key === 'Enter') e.target.blur(); });
+$('speedDown').addEventListener('click', () => setSpeed(Math.round(U.speed * 100) - 5));
+$('speedUp').addEventListener('click', () => setSpeed(Math.round(U.speed * 100) + 5));
+$('speedReset').addEventListener('click', () => setSpeed(100));
+$('speed').value = Math.round(U.speed * 100); $('speedNum').value = Math.round(U.speed * 100);
 seg('namesSeg', 'names', String);
 function applyTheme(){ if (U.theme === 'auto') document.documentElement.removeAttribute('data-theme'); else document.documentElement.setAttribute('data-theme', U.theme); }
 seg('themeSeg', 'theme', String, applyTheme); applyTheme();
@@ -1263,7 +1323,7 @@ const REC = {active:false, ending:false, rec:null, chunks:[], blob:null, ext:'we
 let dlApi = null;
 (async () => { try { dlApi = window.claude?.use ? await window.claude.use('downloads') : null; } catch (e) { dlApi = null; } })();
 const recBtn = $('recBtn'), recStatus = $('recStatus');
-const lockables = () => [playBtn, seekEl, $('openBtn'), $('sampleBtn'), $('part'), ...document.querySelectorAll('#modeSeg button, #speedSeg button')];
+const lockables = () => [playBtn, seekEl, $('openBtn'), $('sampleBtn'), $('part'), ...document.querySelectorAll('#modeSeg button'), $('speed'), $('speedNum'), $('speedDown'), $('speedUp'), $('speedReset')];
 recBtn.addEventListener('click', () => REC.active ? stopRec() : startRec());
 async function startRec(){
   if (!song.line.length){ recStatus.textContent = 'Open a file first.'; return; }

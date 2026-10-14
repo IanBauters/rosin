@@ -14,7 +14,7 @@ Falling-notes practice videos for cello. Open a MIDI or MusicXML file and Rosin 
 - Suggests a fingering for every note: string, finger and position, keeping shifts and string crossings low. Fingerings and strings written in a MusicXML file are used as they are.
 - Shows upcoming shifts on the highway, and on the fingerboard the fingers that stay down behind the one playing
 - **Watch** mode, or **Play along** with the keyboard (D F J K) or by tapping the rings, with score and streak
-- Practice at 50%, 75% or 100% speed without changing the pitch
+- Set the speed to any percentage from 25% to 200% without changing the pitch; the tempo is shown as quarter notes per minute (for example ♩ = 90), next to the original tempo
 - Note names in do-re-mi or C-D-E
 - Records a 1080p video with sound and lets you download it (MP4 or WebM, depending on the browser)
 - Light, dark or automatic theme for the page
