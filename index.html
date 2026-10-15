@@ -276,7 +276,7 @@ function parseMusicXML(text){
     parts.push({name:partNames[part.getAttribute('id')] || 'Part', notes, id: part.getAttribute('id')});
   });
   tempoEv.sort((a,b) => a.q - b.q);
-  if (!tempoEv.length || tempoEv[0].q > 0) tempoEv.unshift({q:0, bpm:tempoEv.length ? tempoEv[0].bpm : 100});
+  if (!tempoEv.length || tempoEv[0].q > 0) tempoEv.unshift({q:0, bpm:tempoEv.length ? tempoEv[0].bpm : 120});
   let sec = 0; const segs = [];
   tempoEv.forEach((t,i) => { if (i) sec += (t.q - tempoEv[i-1].q) * 60 / tempoEv[i-1].bpm; segs.push({q:t.q, bpm:t.bpm, sec}); });
   const q2s = q => { let s = segs[0]; for (const g of segs) if (g.q <= q) s = g; else break; return s.sec + (q - s.q) * 60 / s.bpm; };
